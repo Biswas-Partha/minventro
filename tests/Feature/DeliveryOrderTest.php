@@ -4,35 +4,35 @@ use App\Models\Customer;
 use App\Models\CustomerAddress;
 use App\Models\DeliveryOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
 uses(RefreshDatabase::class);
 
-/**
- * @property Customer $customer
- * @property CustomerAddress $address
- */
-beforeEach(function () {
-    $this->customer = Customer::create([
+function createTestCustomerAndAddress(): array
+{
+    $customer = Customer::create([
         'name'  => 'John Doe',
         'phone' => '1234567890',
         'email' => 'john@example.com',
         'city'  => 'Metropolis',
     ]);
 
-    $this->address = CustomerAddress::create([
-        'customer_id' => $this->customer->id,
+    $address = CustomerAddress::create([
+        'customer_id' => $customer->id,
         'label'       => 'Home',
         'street'      => '123 Main St',
         'city'        => 'Metropolis',
         'is_default'  => true,
     ]);
-});
+
+    return [$customer, $address];
+}
 
 test('can list delivery orders with eager-loaded customer', function () {
+    [$customer, $address] = createTestCustomerAndAddress();
+
     $order = DeliveryOrder::create([
-        'customer_id'         => $this->customer->id,
-        'delivery_address_id' => $this->address->id,
+        'customer_id'         => $customer->id,
+        'delivery_address_id' => $address->id,
         'transport_method'    => 'own_rider',
         'items'               => [['description' => 'Widget A', 'quantity' => 2]],
         'status'              => 'pending',
@@ -47,17 +47,19 @@ test('can list delivery orders with eager-loaded customer', function () {
 });
 
 test('can filter delivery orders by status', function () {
+    [$customer, $address] = createTestCustomerAndAddress();
+
     DeliveryOrder::create([
-        'customer_id'         => $this->customer->id,
-        'delivery_address_id' => $this->address->id,
+        'customer_id'         => $customer->id,
+        'delivery_address_id' => $address->id,
         'transport_method'    => 'own_rider',
         'items'               => [['description' => 'Item 1', 'quantity' => 1]],
         'status'              => 'pending',
     ]);
 
     DeliveryOrder::create([
-        'customer_id'         => $this->customer->id,
-        'delivery_address_id' => $this->address->id,
+        'customer_id'         => $customer->id,
+        'delivery_address_id' => $address->id,
         'transport_method'    => 'own_rider',
         'items'               => [['description' => 'Item 2', 'quantity' => 1]],
         'status'              => 'delivered',
@@ -73,9 +75,11 @@ test('can filter delivery orders by status', function () {
 });
 
 test('can create delivery order with own rider', function () {
+    [$customer, $address] = createTestCustomerAndAddress();
+
     $payload = [
-        'customer_id'         => $this->customer->id,
-        'delivery_address_id' => $this->address->id,
+        'customer_id'         => $customer->id,
+        'delivery_address_id' => $address->id,
         'transport_method'    => 'own_rider',
         'items'               => [
             ['description' => 'Item A', 'quantity' => 3],
@@ -89,20 +93,22 @@ test('can create delivery order with own rider', function () {
     $response->assertStatus(201)
         ->assertJsonPath('transport_method', 'own_rider')
         ->assertJsonPath('status', 'pending')
-        ->assertJsonPath('customer.id', $this->customer->id)
-        ->assertJsonPath('delivery_address.id', $this->address->id);
+        ->assertJsonPath('customer.id', $customer->id)
+        ->assertJsonPath('delivery_address.id', $address->id);
 
     $this->assertDatabaseHas('delivery_orders', [
-        'customer_id'      => $this->customer->id,
+        'customer_id'      => $customer->id,
         'transport_method' => 'own_rider',
         'status'           => 'pending',
     ]);
 });
 
 test('can create delivery order with courier', function () {
+    [$customer, $address] = createTestCustomerAndAddress();
+
     $payload = [
-        'customer_id'         => $this->customer->id,
-        'delivery_address_id' => $this->address->id,
+        'customer_id'         => $customer->id,
+        'delivery_address_id' => $address->id,
         'transport_method'    => 'courier',
         'courier_name'        => 'DHL Express',
         'tracking_number'     => 'TRK-998877',
@@ -119,16 +125,18 @@ test('can create delivery order with courier', function () {
         ->assertJsonPath('tracking_number', 'TRK-998877');
 
     $this->assertDatabaseHas('delivery_orders', [
-        'customer_id'     => $this->customer->id,
+        'customer_id'     => $customer->id,
         'courier_name'    => 'DHL Express',
         'tracking_number' => 'TRK-998877',
     ]);
 });
 
 test('fails validation when transport_method is courier but courier fields are missing', function () {
+    [$customer, $address] = createTestCustomerAndAddress();
+
     $payload = [
-        'customer_id'         => $this->customer->id,
-        'delivery_address_id' => $this->address->id,
+        'customer_id'         => $customer->id,
+        'delivery_address_id' => $address->id,
         'transport_method'    => 'courier',
         'items'               => [
             ['description' => 'Package', 'quantity' => 1],
@@ -142,9 +150,11 @@ test('fails validation when transport_method is courier but courier fields are m
 });
 
 test('fails validation when items is empty', function () {
+    [$customer, $address] = createTestCustomerAndAddress();
+
     $payload = [
-        'customer_id'         => $this->customer->id,
-        'delivery_address_id' => $this->address->id,
+        'customer_id'         => $customer->id,
+        'delivery_address_id' => $address->id,
         'transport_method'    => 'own_rider',
         'items'               => [],
     ];
@@ -156,9 +166,11 @@ test('fails validation when items is empty', function () {
 });
 
 test('can show delivery order', function () {
+    [$customer, $address] = createTestCustomerAndAddress();
+
     $order = DeliveryOrder::create([
-        'customer_id'         => $this->customer->id,
-        'delivery_address_id' => $this->address->id,
+        'customer_id'         => $customer->id,
+        'delivery_address_id' => $address->id,
         'transport_method'    => 'own_rider',
         'items'               => [['description' => 'Item X', 'quantity' => 5]],
         'status'              => 'pending',
@@ -168,14 +180,16 @@ test('can show delivery order', function () {
 
     $response->assertStatus(200)
         ->assertJsonPath('id', $order->id)
-        ->assertJsonPath('customer.id', $this->customer->id)
-        ->assertJsonPath('delivery_address.id', $this->address->id);
+        ->assertJsonPath('customer.id', $customer->id)
+        ->assertJsonPath('delivery_address.id', $address->id);
 });
 
 test('can delete delivery order', function () {
+    [$customer, $address] = createTestCustomerAndAddress();
+
     $order = DeliveryOrder::create([
-        'customer_id'         => $this->customer->id,
-        'delivery_address_id' => $this->address->id,
+        'customer_id'         => $customer->id,
+        'delivery_address_id' => $address->id,
         'transport_method'    => 'own_rider',
         'items'               => [['description' => 'Item', 'quantity' => 1]],
         'status'              => 'pending',
