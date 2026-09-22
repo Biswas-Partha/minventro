@@ -20,4 +20,5 @@ Route::apiResource('products', ProductController::class);
 Route::apiResource('stock-movements', StockMovementController::class);
 Route::apiResource('customers', CustomerController::class);
 Route::apiResource('customer-addresses', CustomerAddressController::class);
+Route::patch('delivery-orders/{deliveryOrder}/advance-status', [DeliveryOrderController::class, 'advanceStatus']);
 Route::apiResource('delivery-orders', DeliveryOrderController::class);

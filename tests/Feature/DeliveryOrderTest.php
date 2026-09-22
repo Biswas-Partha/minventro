@@ -200,3 +200,75 @@ test('can delete delivery order', function () {
     $response->assertStatus(204);
     $this->assertDatabaseMissing('delivery_orders', ['id' => $order->id]);
 });
+
+test('can advance status from pending to dispatched', function () {
+    [$customer, $address] = createTestCustomerAndAddress();
+
+    $order = DeliveryOrder::create([
+        'customer_id'         => $customer->id,
+        'delivery_address_id' => $address->id,
+        'transport_method'    => 'own_rider',
+        'items'               => [['description' => 'Item', 'quantity' => 1]],
+        'status'              => 'pending',
+    ]);
+
+    $response = $this->patchJson("/api/delivery-orders/{$order->id}/advance-status");
+
+    $response->assertStatus(200)
+        ->assertJsonPath('id', $order->id)
+        ->assertJsonPath('status', 'dispatched')
+        ->assertJsonPath('customer.id', $customer->id);
+
+    $this->assertDatabaseHas('delivery_orders', [
+        'id'     => $order->id,
+        'status' => 'dispatched',
+    ]);
+});
+
+test('can advance status from dispatched to delivered', function () {
+    [$customer, $address] = createTestCustomerAndAddress();
+
+    $order = DeliveryOrder::create([
+        'customer_id'         => $customer->id,
+        'delivery_address_id' => $address->id,
+        'transport_method'    => 'courier',
+        'courier_name'        => 'TCS',
+        'tracking_number'     => 'TRK-1234',
+        'items'               => [['description' => 'Item', 'quantity' => 1]],
+        'status'              => 'dispatched',
+    ]);
+
+    $response = $this->patchJson("/api/delivery-orders/{$order->id}/advance-status");
+
+    $response->assertStatus(200)
+        ->assertJsonPath('id', $order->id)
+        ->assertJsonPath('status', 'delivered');
+
+    $this->assertDatabaseHas('delivery_orders', [
+        'id'     => $order->id,
+        'status' => 'delivered',
+    ]);
+});
+
+test('cannot advance status when already delivered', function () {
+    [$customer, $address] = createTestCustomerAndAddress();
+
+    $order = DeliveryOrder::create([
+        'customer_id'         => $customer->id,
+        'delivery_address_id' => $address->id,
+        'transport_method'    => 'own_rider',
+        'items'               => [['description' => 'Item', 'quantity' => 1]],
+        'status'              => 'delivered',
+    ]);
+
+    $response = $this->patchJson("/api/delivery-orders/{$order->id}/advance-status");
+
+    $response->assertStatus(422)
+        ->assertJsonPath('message', 'Delivery order is already delivered and cannot be advanced further.');
+
+    $this->assertDatabaseHas('delivery_orders', [
+        'id'     => $order->id,
+        'status' => 'delivered',
+    ]);
+});
+

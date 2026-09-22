@@ -68,4 +68,24 @@ class DeliveryOrderController extends Controller
 
         return response()->json(null, 204);
     }
+
+    /**
+     * Advance the delivery order status by one step:
+     * pending -> dispatched -> delivered
+     * Returns 422 if already delivered.
+     */
+    public function advanceStatus(DeliveryOrder $deliveryOrder)
+    {
+        if ($deliveryOrder->status === 'pending') {
+            $deliveryOrder->update(['status' => 'dispatched']);
+        } elseif ($deliveryOrder->status === 'dispatched') {
+            $deliveryOrder->update(['status' => 'delivered']);
+        } else {
+            return response()->json([
+                'message' => 'Delivery order is already delivered and cannot be advanced further.',
+            ], 422);
+        }
+
+        return response()->json($deliveryOrder->load(['customer', 'deliveryAddress']));
+    }
 }
