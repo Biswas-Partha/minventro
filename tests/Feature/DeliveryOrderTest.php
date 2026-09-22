@@ -4,9 +4,14 @@ use App\Models\Customer;
 use App\Models\CustomerAddress;
 use App\Models\DeliveryOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 uses(RefreshDatabase::class);
 
+/**
+ * @property Customer $customer
+ * @property CustomerAddress $address
+ */
 beforeEach(function () {
     $this->customer = Customer::create([
         'name'  => 'John Doe',
